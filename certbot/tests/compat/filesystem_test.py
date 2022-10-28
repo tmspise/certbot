@@ -333,19 +333,31 @@ class WindowsMkdirTests(test_util.TempDirTestCase):
 
 class MakedirsTests(test_util.TempDirTestCase):
     """Unit tests for makedirs function in filesystem module"""
-    def test_makedirs_correct_permissions(self):
-        path = os.path.join(self.tempdir, 'dir')
-        subpath = os.path.join(path, 'subpath')
+    def setUp(self) -> None:
+        self.current_umask = filesystem.umask(0)
+        filesystem.umask(self.current_umask)
+        super().setUp()
 
-        previous_umask = filesystem.umask(0o022)
+    def tearDown(self) -> None:
+        filesystem.umask(self.current_umask) # Reset to the umask we were using prior to testing
+        super().tearDown()
 
-        try:
-            filesystem.makedirs(subpath, 0o700)
+    def _run_test_with_umask(self, umask: int) -> None:
+        desired_mode = 0o755
+        intermediate_path = os.path.join(self.tempdir, "intermediate")
+        full_path = os.path.join(intermediate_path, "leaf")
+        filesystem.umask(umask)
+        filesystem.makedirs(full_path, desired_mode)
+        assert filesystem.check_mode(intermediate_path, desired_mode)
+        assert filesystem.check_mode(full_path, desired_mode)
+        self.assertEqual(filesystem.umask(0), umask)
 
-            assert filesystem.check_mode(path, 0o700)
-            assert filesystem.check_mode(subpath, 0o700)
-        finally:
-            filesystem.umask(previous_umask)
+    def test_with_permissive_umask(self) -> None:
+        self._run_test_with_umask(0o0022)
+
+    def test_with_strict_umask(self) -> None:
+        self._run_test_with_umask(0o0027)
+
 
 
 class CopyOwnershipAndModeTest(test_util.TempDirTestCase):
