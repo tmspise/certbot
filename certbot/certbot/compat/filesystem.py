@@ -275,7 +275,7 @@ def makedirs(file_path: str, mode: int = 0o777) -> None:
         # directories that could be created in the process. To keep things safe and consistent
         # on all Python versions, we set the umask accordingly to have all directories
         # (intermediate and leaf) created with the given mode.
-        umask(current_umask | 0o777 ^ mode)
+        umask(0o777 - mode)
 
         if POSIX_MODE:
             return os.makedirs(file_path, mode)
